@@ -6,7 +6,7 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
-@app.route('/get_assessment', methods=['POST'])
+@app.route('WebApps/get_assessment', methods=['POST'])
 def get_assessment():
     data = json.loads(request.data)
     app_type = data['app_type']
