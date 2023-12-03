@@ -1,55 +1,121 @@
-from flask import Flask, render_template, request, jsonify,json
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Testing Assessment</title>
 
-app = Flask(__name__)
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+        }
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+        h1 {
+            color: #333;
+        }
 
-@app.route('/get_assessment', methods=['POST'])
-def get_assessment():
-    data = json.loads(request.data)
-    app_type = data['app_type']
-    selected_testing = data['selected_testing']
+        label {
+            font-size: 16px;
+            margin-right: 10px;
+        }
 
-    # Define testing requirements based on the application type
-    requirements = {
-        "Web Applications": ["Functional Testing", "Usability Testing", "Performance Testing", "Security Testing", "Compatibility Testing", "Cross-browser Testing"],
-        "Mobile Applications": ["Functional Testing", "Usability Testing", "Performance Testing", "Security Testing", "Compatibility Testing", "Mobile App Automation Testing"],
-        # Add more application types and their testing requirements as needed
-    }
+        select, .checkbox-group {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
 
-    # Check if the selected application type is in the requirements dictionary
-    if app_type in requirements:
-        mandatory_testing = requirements[app_type]
-        print(selected_testing)
-        print(mandatory_testing)
+        button {
+            font-size: 16px;
+            padding: 10px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
 
-        missing_testing = list(set(mandatory_testing) - set(selected_testing))
-        print(missing_testing)
-        # overdone_testing = list(set(selected_testing) - set(mandatory_testing))
+        button:hover {
+            background-color: #45a049;
+        }
 
-        response = f"For {app_type}, mandatory testing includes: {', '.join(mandatory_testing)}\n"
+        #assessment-result {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Application Testing Assessment</h1>
 
-        if missing_testing:
-            response += f"\nYou are missing and need to focus on following: {', '.join(missing_testing)}\n"
-        # if overdone_testing:
-        #     response += f"You have overdone the following: {', '.join(overdone_testing)}\n"
+    <label for="app-type">Select Application Type:</label>
+    <select id="app-type" onchange="updateTestingOptions()">
+        <option value="Select App Type">Select App Type</option>
+        <option value="Web Applications">Web Applications</option>
+        <option value="Mobile Applications">Mobile Applications</option>
+        <!-- Add more application types as needed -->
+    </select>
 
-        return jsonify({'response': response})
-    else:
-        return jsonify({'response': "Invalid application type. Please select a valid application type."})
+    <div class="checkbox-group" id="testing-options"></div>
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    <button onclick="getAssessment()">Submit</button>
 
+    <p id="assessment-result"></p>
 
+    <script>
+        function updateTestingOptions() {
+            const appType = document.getElementById('app-type').value;
+            const testingOptionsDiv = document.getElementById('testing-options');
 
+            // Define testing options based on the selected application type
+            const testingOptions = {
+                "Select App Type" : [],
+                "Web Applications": ["Functional Testing", "Usability Testing", "Performance Testing", "Security Testing", "Compatibility Testing", "Cross-browser Testing"],
+                "Mobile Applications": ["Functional Testing", "Usability Testing", "Performance Testing", "Security Testing", "Compatibility Testing", "Mobile App Automation Testing"],
+                // Add more application types and their testing requirements as needed
+            };
 
-'''project_folder/
-│
-├── templates/
-│   └── index.html
-│
-└── run.py
-'''
+            // Clear previous options
+            testingOptionsDiv.innerHTML = '';
+
+            // Create checkboxes for each testing option
+            testingOptions[appType].forEach(option => {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'testing-option';
+                checkbox.value = option;
+                checkbox.id = option;
+
+                const label = document.createElement('label');
+                label.htmlFor = option;
+                label.appendChild(document.createTextNode(option));
+
+                testingOptionsDiv.appendChild(checkbox);
+                testingOptionsDiv.appendChild(label);
+                testingOptionsDiv.appendChild(document.createElement('br'));
+            });
+        }
+
+        function getAssessment() {
+            const appType = document.getElementById('app-type').value;
+            const checkboxes = document.querySelectorAll('input[name="testing-option"]:checked');
+            const selectedTesting = Array.from(checkboxes).map(checkbox => checkbox.value);
+
+            // Call the server-side endpoint with the selected application type and testing options
+            fetch('/get_assessment', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},  // Update content type
+                body: JSON.stringify({app_type: appType, selected_testing: selectedTesting})
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('assessment-result').innerText = data.response;
+            });
+        }
+
+        // Initial call to populate testing options on page load
+        updateTestingOptions();
+    </script>
+</body>
+</html>
