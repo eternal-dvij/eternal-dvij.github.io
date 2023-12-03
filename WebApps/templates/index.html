@@ -103,7 +103,7 @@
             const selectedTesting = Array.from(checkboxes).map(checkbox => checkbox.value);
 
             // Call the server-side endpoint with the selected application type and testing options
-            fetch('/get_assessment', {
+            fetch('WebApps/get_assessment', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},  // Update content type
                 body: JSON.stringify({app_type: appType, selected_testing: selectedTesting})
