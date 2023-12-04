@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPI/DEA Number Generator</title>
+    <!-- Include Pyodide -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
+    <style>
+        /* Add your styles here if needed */
+		body {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			margin: 0;
+		}
+
+		#cardND-container {
+			display: flex;
+			gap: 20px;
+		}
+
+		#cardND {
+			width: fit-content;
+			background-color: #fff;
+			border-radius: 10px;
+			box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Increased shadow */
+			padding: 20px;
+			transition: transform 0.3s;
+		}
+		
+		#information-statement {
+            text-align: center;
+            margin-top: 20px; /* Add margin to the top of the statement */
+        }
+
+
+		@media (max-width: 600px) {
+			#cardND-container {
+				flex-direction: column;
+			}
+		}
+    </style>
+</head>
+<body>
+    <div>
+        <center><h1>NPI/DEA Number Generator</h1></center>
+
+        <div id="cardND-container">
+            <div id="cardND">
+                <div id="input-section">
+				<hr>
+                    <center><h3> DEA number generator </h3></center>
+					<hr>
+                    <label for="last-name">Enter the last name of the prescriber:</label>
+                    <input type="text" id="last-name" required>
+                    <br>
+                    <label>Choose DEA type:</label>
+                    <div>
+                        <input type="radio" id="b-type" name="dea-type" value="B" required>
+                        <label for="b-type">B (Hospital/Clinic)</label>
+
+                        <input type="radio" id="f-type" name="dea-type" value="F" required>
+                        <label for="f-type">F (Distributor)</label>
+                        <br>
+
+                        <input type="radio" id="p-type" name="dea-type" value="P" required>
+                        <label for="p-type">P (Narcotic Treatment Program)</label>
+
+                        <input type="radio" id="c-type" name="dea-type" value="C" required>
+                        <label for="c-type">C (Practitioner)</label>
+                    </div>
+                </div>
+
+                <div id="result-section">
+                    <p id="result-container">
+                        <span id="dea-number"></span>
+                        <button onclick="copyToClipboard('dea-number')" disabled>Copy</button>
+                    </p>
+                </div>
+
+                <div class="buttons">
+                    <button onclick="generateDEA()">Generate DEA Number</button>
+                    <!-- Add other buttons as needed -->
+                </div>
+            </div>
+
+            <div id="cardND">
+			<hr>
+                <center><h3> NPI number generator </h3></center>
+			<hr>
+
+                <div id="npi">
+                    <!-- NPI Number Generator Section -->
+                    <div id="result-section" class="result-container">
+                        <p>
+                            <span id="npi-number"></span>
+                            <button onclick="copyToClipboard('npi-number')" disabled>Copy</button>
+                        </p>
+                    </div>
+
+                    <div class="buttons">
+                        <button onclick="generateNPI()">Generate NPI</button>
+                        <!-- Add other buttons as needed -->
+                    </div>
+                </div>
+            </div>
+        </div>
+		<div id="information-statement">
+            <p>Please wait for a few seconds if the numbers are not generating. If issue persists, try again. It depends on the network bandwidth.</p>
+        </div>
+    </div>
+
+    <!-- Load Pyodide and run Python code -->
+    <script>
+        let pyodide;
+
+        async function runPythonCode() {
+            pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.18.1/full/' });
+
+            if (pyodide) {
+                // Additional Python functions can be defined here if needed
+            } else {
+                console.error('Failed to load Pyodide.');
+            }
+        }
+
+        async function generateDEA() {
+            if (!pyodide) {
+                console.error('Pyodide is not loaded.');
+                return;
+            }
+
+            const lastName = document.getElementById('last-name').value;
+            const deaType = document.querySelector('input[name="dea-type"]:checked');
+
+            if (!lastName || !deaType) {
+                alert('Please enter the last name and choose DEA type.');
+                return;
+            }
+
+            const deaTypeName = deaType.value;
+            const generateDEANumber = await pyodide.runPythonAsync(`
+                import random
+
+                def generate_dea_number(last_name, dea_type):
+                    firstletteroflName = last_name[0]
+                    dea = dea_type
+                    dea = dea + firstletteroflName.upper()
+                    s = []
+                    for i in range(2, 8):
+                        t = random.randint(0, 9)
+                        s.append(t)
+                    for i in range(len(s)):
+                        x = str(s[i])
+                        dea = dea + x
+                    even = []
+                    odd = []
+                    for i in range(len(s)):
+                        if i % 2 == 0:
+                            even.append(s[i])
+                        else:
+                            odd.append(s[i])
+                    finalsum = sum(even) + (sum(odd) * 2)
+                    dea = dea + str(finalsum % 10)
+                    return dea
+
+                generate_dea_number('${lastName}', '${deaTypeName}')
+            `);
+
+            // Display the result and enable the "Copy" button
+            const resultContainer = document.getElementById('dea-number');
+            resultContainer.innerHTML = generateDEANumber;
+
+            const copyButton = document.querySelector('#result-container button');
+            copyButton.disabled = false;
+        }
+
+        async function generateNPI(){
+            if (!pyodide) {
+                console.error('Pyodide is not loaded.');
+                return;
+            }
+
+            const generateNPI = await pyodide.runPythonAsync(`
+                import random
+
+                npi9 = random.randint(100000000,999999999)
+                alt_digits = str(npi9) [0:10:2]
+                rem_digits = str(npi9)[1:10:2]
+                double_alt_digits = []
+                for j in alt_digits[::-1]:
+                    d_alt = int(j)*2
+                    double_alt_digits.append(d_alt)
+
+                make_unit_d = []
+
+                for i in double_alt_digits:
+                    if len(str(i))>1:
+                        make_unit_d.append(int(str(i)[0]))
+                        make_unit_d.append(int(str(i)[1]))
+                    else:
+                        make_unit_d.append(i)
+
+                for r in rem_digits:
+                    make_unit_d.append(int(r))
+                sum_d = sum(make_unit_d)
+                sum_d += 24
+
+                if sum_d % 10 != 0:
+                    check_digit = 10 - (sum_d % 10)
+                else:
+                    check_digit = 0
+
+                npi = int(str(npi9) + str(check_digit))
+                npi
+            `);
+
+            // Display the result and enable the "Copy" button
+            const resultContainer = document.getElementById('npi-number');
+            resultContainer.innerHTML = generateNPI;
+
+            const copyButton = document.querySelector('#npi-number + button');
+            copyButton.disabled = false;
+        }
+
+        function copyToClipboard(id) {
+            const resultContainer = document.getElementById(id);
+
+            if (resultContainer.textContent) {
+                // Use the clipboardData attribute to set the number
+                navigator.clipboard.writeText(resultContainer.textContent)
+                    .then(() => alert('Number copied to clipboard!'))
+                    .catch((err) => console.error('Unable to copy number:', err));
+            } else {
+                alert('No number to copy!');
+            }
+        }
+
+        // Call the function to run Python code when the page is loaded
+        runPythonCode();
+    </script>
+</body>
+</html>
