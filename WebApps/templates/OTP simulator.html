@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OTP Generator UI</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      width: 300px;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      margin: 10px;
+      transition: transform 0.3s;
+    }
+
+    .card-container {
+      display: flex;
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .card-container {
+        flex-direction: column;
+      }
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .otp-field {
+      margin-top: 15px;
+    }
+
+    #otpDisplay {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    #remainingTime {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    #otpInput {
+      width: 60%;
+    }
+
+    .info-text {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>OTP Simulator</h1>
+  <hr>
+  <div class="card-container">
+    <div class="card">
+      <div id="lengthInfo" class="info-text"></div>
+      <label>
+        Length:
+        <input type="number" id="lengthInput" oninput="checkLength()">
+      </label>
+
+      <div id="timeInfo" class="info-text"></div>
+      <label>
+        Time (seconds):
+        <input type="number" id="timeInput" oninput="checkTime()">
+      </label>
+
+      <button onclick="generateOtp()">Generate OTP</button>
+    </div>
+
+    <div class="card">
+      <div id="otpDisplay" class="otp-field"></div>
+      <div id="remainingTime"></div>
+      <label for="otpInput">Enter OTP:</label>
+      <input type="text" id="otpInput" />
+      <button onclick="validateOtp()">Validate OTP</button>
+    </div>
+  </div>
+
+  <script>
+    // Load Pyodide
+    let pyodide;
+
+    async function runPythonCode() {
+      pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.18.1/full/' });
+
+      if (!pyodide) {
+        console.error('Failed to load Pyodide.');
+      }
+    }
+
+    async function generateOtp() {
+      if (!pyodide) {
+        console.error('Pyodide is not loaded.');
+        return;
+      }
+
+      // Python code
+      const pythonCode = `
+import random
+import time
+import string
+
+def generate_otp(length: int, valid_time_in_sec: int, max_length: int = 10) -> str:
+    if length <= 10:
+        digit_range = string.digits[1:10]
+        digits = random.choices(digit_range, k=min(length, max_length))
+        dcrt_otp = ["".join(digits[i:i + 2]) for i in range(0, len(digits), 2)]
+        otp = ''.join(dcrt_otp)
+    else:
+        otp = ''
+
+    return otp
+`;
+
+      // Evaluate Python code
+      pyodide.runPython(pythonCode);
+
+      const length = document.getElementById('lengthInput').value;
+      const time = document.getElementById('timeInput').value;
+      const otpDisplay = document.getElementById('otpDisplay');
+      const remainingTime = document.getElementById('remainingTime');
+      const timeInfo = document.getElementById('timeInfo');
+
+      // Clear previous content
+      otpDisplay.textContent = '';
+
+      // Ensure time is within the limit
+      const maxTime = 300;
+      if (parseInt(time) > maxTime) {
+        timeInfo.textContent = `Max length of Time (seconds): should be ${maxTime}.`;
+        return;
+      } else {
+        timeInfo.textContent = '';
+      }
+
+      // Generate OTP using Pyodide
+      const generatedOtp = pyodide.globals.generate_otp(Number(length), Number(time));
+
+      // Display generated OTP
+      otpDisplay.textContent = `Generated OTP: ${generatedOtp}`;
+
+      // Display remaining time
+      let timeLeft = generatedOtp ? time : '';
+      remainingTime.textContent = timeLeft !== '' ? `Remaining Time: ${timeLeft}s` : '';
+
+      // Countdown
+      if (timeLeft !== '') {
+        const countdownInterval = setInterval(() => {
+          timeLeft--;
+          remainingTime.textContent = `Remaining Time: ${timeLeft}s`;
+
+          if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+            remainingTime.textContent = 'Remaining Time: 0s';
+          }
+        }, 1000);
+      }
+    }
+
+    function validateOtp() {
+      const enteredOtp = document.getElementById('otpInput').value;
+      const generatedOtp = document.getElementById('otpDisplay').textContent.split(': ')[1];
+      const remainingTime = parseInt(document.getElementById('remainingTime').textContent.split(': ')[1]);
+
+      if (enteredOtp === generatedOtp && remainingTime > 0) {
+        alert('OTP is valid!');
+      } else {
+        alert('Invalid OTP or time expired!');
+      }
+    }
+
+    runPythonCode();
+
+    function checkLength() {
+      const lengthInput = document.getElementById('lengthInput');
+      const lengthInfo = document.getElementById('lengthInfo');
+      const maxLength = 10;
+
+      if (parseInt(lengthInput.value) > maxLength) {
+        lengthInfo.textContent = `Max length of OTP should be ${maxLength}.`;
+      } else {
+        lengthInfo.textContent = '';
+      }
+    }
+
+    function checkTime() {
+      const timeInput = document.getElementById('timeInput');
+      const timeInfo = document.getElementById('timeInfo');
+      const maxTime = 300;
+
+      if (parseInt(timeInput.value) > maxTime) {
+        timeInfo.textContent = `Max length of Time (seconds): should be ${maxTime}.`;
+      } else {
+        timeInfo.textContent = '';
+      }
+    }
+  </script>
+</body>
+</html>
